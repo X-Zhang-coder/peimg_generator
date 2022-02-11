@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 # @Author: ZX
-# @Date: 2021-12-25 17:57:09 
-# @Last Modified by: ZX
-# @Last Modified time: 2021-12-30 23:06:45
 
 """
 This script is to auto-generate PE-loops from Radiant txt data.
@@ -38,10 +35,13 @@ import time
 # Vital Parameters #
 #------------------#
 
-thickness = 0.39    # Total thickness of film (um)
+thickness_set = 'auto'    # Total thickness of film (um)
+                        # e.g. thickness_set = 0.39
+                        # If use 'auto', thickness will be read from data file
 
-area_test = 0.0005  # Area of electrode input when testing PE (cm2)
-area_actual = 0.0005    # Actual area of electroed (cm2)
+area_set = 'auto'    # Actual area of electrode (cm2)
+                    # e.g. area_set = 0.0005
+                    # If use 'auto', area will be read from data file
 
 #--------------------------------------------------------------------------------------------------------------------#
 
@@ -110,7 +110,7 @@ if type(E_range) == list:
 if type(P_range) == list:
     plt.ylim(*P_range)
 
-def _getCommonPrefix(filenames):
+def _getCommonPrefix(filenames: list) -> str:
     result = ''
     for i in zip(*filenames):
         if len(set(i)) == 1:
@@ -119,47 +119,143 @@ def _getCommonPrefix(filenames):
             break
     return result
 
-def selectLegend(legend_type):
-    if legend_type is None:
-        legend = None
-    elif legend_type == 'filename':
-        legend = file[:-4]
-    elif legend_type == 'volt':
-        legend = str(int(max(pe_data[:,0])/5 + 0.5) * 5) + 'V'
-    else:
-        legend = str(int(max(pe_data[:,0]/thickness*10)/100 + 0.5) * 100) + 'kV/cm'
-    return legend
 
-def getData(txt_file):
-    with open(txt_file, 'rb') as f:
-        lines = f.read()
-    lines = lines.replace(b'\xbb', b'')
-    lines = lines.replace(b'\xab', b'')
-    with open('pe.tmp', 'wb') as g:
-        g.write(lines)
-    try:
-        data = np.genfromtxt('pe.tmp', delimiter='\t', skip_header=51, skip_footer=12)[:, 2:]
-        return data
-    except:
-        print('Warning: datafile error!')
-        print('Data of file ', txt_file, 'are excluded!\n')
-        print('Input \"q\" to exit this procedure,')
-        print('Or input any other to continue.\n')
-        order = input('Your order here:')
-        if order.lower == 'q':
-            exit(1)
+class loop:
+    """Data of a loop"""
+    def __init__(self) -> None:
+        self.pe_str = ''
+        self.p_data = None
+        self.e_data = None
+        self.max_volt = None
+        self.max_elecfield = None
+        self.thickness = None
+        self.area = None
+        self.pmax = None
+        self.pr = None
+        self.wrec = None
+        self.eff = None
+
+    def compute(self, area_set: float=None, thickness_set: float=None) -> None:
+        """
+        To transform pe_data to array format, 
+        and calculate energy storage density and efficiency.
+        """
+        pe_data = np.array(np.mat(self.pe_str)).reshape(-1,4)
+        self.p_data = pe_data[:, 3]
+        if area_set:
+            correct_rate = self.area / area_set
+            self.area = area_set
+            self.pmax *= correct_rate
+            self.pr *= correct_rate
+            self.p_data *= correct_rate
+        if thickness_set:
+            self.thickness = thickness_set
+            self.max_elecfield *= self.max_volt / thickness_set * 10    # 10 is to turn unit kV/mm to kV/cm
+        self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
+
+    def selectLegend(self, legend_type: str) -> str:
+        """To get legend of a loop data when plotting"""
+        if legend_type is None:
+            legend = None
+        elif legend_type == 'filename':
+            legend = file[:-4]
+        elif legend_type == 'volt':
+            legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + 'V'
+        else:
+            legend = str(int(max(self.e_data)/100 + 0.5) * 100) + 'kV/cm'
+        return legend
+
+    def processLine(self, line: str) -> None:
+        """To process data of a line to loop"""
+        func = self.lineProcessFunc.get(line[0])
+        if func:
+            func(self, line)
+
+    def _peLine(self, line: str) -> None:
+        """To process pe-data line"""
+        if line[3].isdigit():
+            self.pe_str = f'{self.pe_str}{line}'
+
+    def _VLine(self, line: str) -> None:
+        """To process line starting with 'V' """
+        if line.startswith('Volts:'):
+            self.__voltLine(line)
+
+    def __voltLine(self, line: str) -> None:
+        """To process max voltage line"""
+        self.max_volt = float(line.split('\t')[1])
+
+    def _FLine(self, line: str) -> None:
+        """To process line starting with 'F' """
+        if line.startswith('Field:'):
+            self.__elecfieldLine(line)
+
+    def __elecfieldLine(self, line: str) -> None:
+        """To process max electric field line"""
+        self.max_elecfield = float(line[7:-8])
+        # 7 and -8 are respectively the length of "Field:" and "(kV/cm)"
+        
+    def _PLine(self, line: str) -> None:
+        """To process line starting with 'P' """
+        if line.startswith('PMax ('):
+            self.__pmaxLine(line)
+        elif line.startswith('Pr ('):
+            self.__prLine(line)
+
+    def __pmaxLine(self, line: str) -> None:
+        """To process PMax line"""
+        self.pmax = float(line.split('\t')[1])
+    
+    def __prLine(self, line: str) -> None:
+        """To process Pr line"""
+        self.pr = float(line.split('\t')[1])
+
+    def _SLine(self, line: str) -> None:
+        """To process line starting with 'S' """
+        if line.startswith('Sample Area ('):
+            self.__areaLine(line)
+        elif line.startswith('Sample Thickness ('):
+            self.__thicknessLine(line)
+
+    def __areaLine(self, line: str) -> None:
+        """To process area line"""
+        self.area = float(line.split('\t')[1])
+
+    def __thicknessLine(self, line: str) -> None:
+        """To process thickness line"""
+        self.thickness = float(line.split('\t')[1])
+
+    lineProcessFunc = { # Functions for processing lines
+        ' ': _peLine,
+        'P': _PLine,
+        'S': _SLine,
+        'V': _VLine,
+        'F': _FLine
+        }
+
+
+def getData(txt_file: str, area: float, thickness: float) -> loop:
+    """To get data from a txt file"""
+    a_loop = loop()
+    with open(txt_file, 'r', encoding='utf-8', errors='ignore') as f:
+        lines = f.readlines()
+    for line in lines:
+        a_loop.processLine(line)
+    if type(area) != float:
+        area = None
+    if type(thickness) != float:
+        thickness = None
+    a_loop.compute(area, thickness)
+    return a_loop
 
 
 if __name__ == '__main__':
     txt_files = []
-    for root, dirs, files in os.walk('./'):
-        txt_files = [file for file in files if file.endswith('.txt')]
-        for file in txt_files:
-            pe_data = getData(file)
-            if pe_data is None:
-                continue
-            legend = selectLegend(legend_type)
-            plt.plot(pe_data[:,0]/thickness*10, pe_data[:,1]*area_test/area_actual, label=legend, linewidth=line_width)
+    txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
+    for file in txt_files:
+        loop_data = getData(file, area=area_set, thickness=thickness_set)
+        legend = loop_data.selectLegend(legend_type)
+        plt.plot(loop_data.e_data, loop_data.p_data, label=legend, linewidth=line_width)
 
     plt.legend(loc=legend_pos, prop={'size': legend_size})
     if output_header is None or output_header == 'auto':
@@ -168,4 +264,3 @@ if __name__ == '__main__':
         output_header += '_'
     fig_path = 'pe_' + output_header + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
     plt.savefig(fig_path, transparent=True)
-    os.remove('pe.tmp')
