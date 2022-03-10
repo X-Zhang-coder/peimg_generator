@@ -122,7 +122,8 @@ def _getCommonPrefix(filenames: list) -> str:
 
 class loop:
     """Data of a loop"""
-    def __init__(self) -> None:
+    def __init__(self, file_name: str='') -> None:
+        self.file_name = file_name
         self.pe_str = ''
         self.p_data = None
         self.e_data = None
@@ -135,11 +136,34 @@ class loop:
         self.wrec = None
         self.eff = None
 
+    def processLine(self, line: str) -> None:
+        """To process data of a line to loop"""
+        func = self.lineProcessFunc.get(line[0])
+        if func:
+            func(self, line)
+
     def compute(self, area_set: float=None, thickness_set: float=None) -> None:
         """
         To transform pe_data to array format, 
         and calculate energy storage density and efficiency.
         """
+        self._computePE(area_set, thickness_set)
+        self._computeEnergy()
+
+    def selectLegend(self, legend_type: str) -> str:
+        """To get legend of a loop data when plotting"""
+        if legend_type is None:
+            legend = None
+        elif legend_type == 'filename':
+            legend = self.file_name[:-4]
+        elif legend_type == 'volt':
+            legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + 'V'
+        else:
+            legend = str(int(max(self.e_data)/100 + 0.5) * 100) + 'kV/cm'
+        return legend
+
+    def _computePE(self, area_set: float=None, thickness_set: float=None) -> None:
+        """PE data computation"""
         pe_data = np.array(np.mat(self.pe_str)).reshape(-1,4)
         self.p_data = pe_data[:, 3]
         if area_set:
@@ -153,23 +177,9 @@ class loop:
             self.max_elecfield *= self.max_volt / thickness_set * 10    # 10 is to turn unit kV/mm to kV/cm
         self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
 
-    def selectLegend(self, legend_type: str) -> str:
-        """To get legend of a loop data when plotting"""
-        if legend_type is None:
-            legend = None
-        elif legend_type == 'filename':
-            legend = file[:-4]
-        elif legend_type == 'volt':
-            legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + 'V'
-        else:
-            legend = str(int(max(self.e_data)/100 + 0.5) * 100) + 'kV/cm'
-        return legend
-
-    def processLine(self, line: str) -> None:
-        """To process data of a line to loop"""
-        func = self.lineProcessFunc.get(line[0])
-        if func:
-            func(self, line)
+    def _computeEnergy(self) -> None:
+        """Wrec and efficiency computation"""
+        pass
 
     def _peLine(self, line: str) -> None:
         """To process pe-data line"""
@@ -236,7 +246,7 @@ class loop:
 
 def getData(txt_file: str, area: float, thickness: float) -> loop:
     """To get data from a txt file"""
-    a_loop = loop()
+    a_loop = loop(file_name=os.path.basename(txt_file))
     with open(txt_file, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()
     for line in lines:
@@ -250,13 +260,12 @@ def getData(txt_file: str, area: float, thickness: float) -> loop:
 
 
 if __name__ == '__main__':
-    txt_files = []
     txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
-    for file in txt_files:
-        loop_data = getData(file, area=area_set, thickness=thickness_set)
+    all_loopdata = [getData(file, area=area_set, thickness=thickness_set) for file in txt_files]
+    all_loopdata.sort(key=lambda x: x.max_elecfield)
+    for loop_data in all_loopdata:
         legend = loop_data.selectLegend(legend_type)
         plt.plot(loop_data.e_data, loop_data.p_data, label=legend, linewidth=line_width)
-
     plt.legend(loc=legend_pos, prop={'size': legend_size})
     if output_header is None or output_header == 'auto':
         output_header = _getCommonPrefix(txt_files)
