@@ -96,7 +96,11 @@ graph_params={'font.family':'serif',
         'font.weight':'bold',
         'font.size': 12,
         'xtick.direction': 'in',
-        'ytick.direction': 'in'
+        'ytick.direction': 'in',
+        'lines.linewidth': line_width,
+        'legend.loc': legend_pos,
+        'legend.frameon': False,
+        'legend.facecolor': 'none'
         }
 rcParams.update(graph_params)
 
@@ -266,7 +270,7 @@ if __name__ == '__main__':
     for loop_data in all_loopdata:
         legend = loop_data.selectLegend(legend_type)
         plt.plot(loop_data.e_data, loop_data.p_data, label=legend, linewidth=line_width)
-    plt.legend(loc=legend_pos, prop={'size': legend_size})
+    plt.legend(prop={'size': legend_size})
     if output_header is None or output_header == 'auto':
         output_header = _getCommonPrefix(txt_files)
     if not output_header.endswith('_'):
