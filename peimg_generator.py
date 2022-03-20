@@ -126,8 +126,9 @@ def _getCommonPrefix(filenames: list) -> str:
 
 class loop:
     """Data of a loop"""
-    def __init__(self, file_name: str='') -> None:
-        self.file_name = file_name
+    def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
+        self.file_dir = file_dir
+        self.file_name = os.path.basename(file_dir)
         self.pe_str = ''
         self.p_data = None
         self.e_data = None
@@ -139,18 +140,27 @@ class loop:
         self.pr = None
         self.wrec = None
         self.eff = None
-
+        self.readData(area_set, thickness_set)
+        
     def processLine(self, line: str) -> None:
         """To process data of a line to loop"""
         func = self.lineProcessFunc.get(line[0])
         if func:
             func(self, line)
 
-    def compute(self, area_set: float=None, thickness_set: float=None) -> None:
+    def readData(self, area_set: float=None, thickness_set: float=None) -> None:
         """
         To transform pe_data to array format, 
         and calculate energy storage density and efficiency.
         """
+        with open(self.file_dir, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+        for line in lines:
+            self.processLine(line)
+        if type(area_set) != float and type(area_set) != int:
+            area_set = None
+        if type(thickness_set) != float and type(thickness_set) != int:
+            thickness_set = None
         self._computePE(area_set, thickness_set)
         self._computeEnergy()
 
@@ -248,24 +258,9 @@ class loop:
         }
 
 
-def getData(txt_file: str, area: float, thickness: float) -> loop:
-    """To get data from a txt file"""
-    a_loop = loop(file_name=os.path.basename(txt_file))
-    with open(txt_file, 'r', encoding='utf-8', errors='ignore') as f:
-        lines = f.readlines()
-    for line in lines:
-        a_loop.processLine(line)
-    if type(area) != float:
-        area = None
-    if type(thickness) != float:
-        thickness = None
-    a_loop.compute(area, thickness)
-    return a_loop
-
-
 if __name__ == '__main__':
     txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
-    all_loopdata = [getData(file, area=area_set, thickness=thickness_set) for file in txt_files]
+    all_loopdata = [loop(file, area_set, thickness_set) for file in txt_files]
     all_loopdata.sort(key=lambda x: x.max_elecfield)
     for loop_data in all_loopdata:
         legend = loop_data.selectLegend(legend_type)
