@@ -129,6 +129,7 @@ class loop:
     def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
         self.file_dir = file_dir
         self.file_name = os.path.basename(file_dir)
+        self.fieldmode = False
         self.pe_str = ''
         self.p_data = None
         self.e_data = None
@@ -189,7 +190,10 @@ class loop:
         if thickness_set:
             self.thickness = thickness_set
             self.max_elecfield *= self.max_volt / thickness_set * 10    # 10 is to turn unit kV/mm to kV/cm
-        self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
+        if self.fieldmode:
+            self.e_data = pe_data[:, 2]
+        else:
+            self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
 
     def _computeEnergy(self) -> None:
         """Wrec and efficiency computation"""
@@ -225,6 +229,8 @@ class loop:
             self.__pmaxLine(line)
         elif line.startswith('Pr ('):
             self.__prLine(line)
+        elif line.startswith('Point\t'):
+            self.__pointLine(line)
 
     def __pmaxLine(self, line: str) -> None:
         """To process PMax line"""
@@ -233,6 +239,11 @@ class loop:
     def __prLine(self, line: str) -> None:
         """To process Pr line"""
         self.pr = float(line.split('\t')[1])
+
+    def __pointLine(self, line:str) -> None:
+        """To detect data mode, volt or elecfield"""
+        if line.split('\t')[2].startswith('Field'):
+            self.fieldmode = True
 
     def _SLine(self, line: str) -> None:
         """To process line starting with 'S' """
@@ -264,7 +275,7 @@ if __name__ == '__main__':
     all_loopdata.sort(key=lambda x: x.max_elecfield)
     for loop_data in all_loopdata:
         legend = loop_data.selectLegend(legend_type)
-        plt.plot(loop_data.e_data, loop_data.p_data, label=legend, linewidth=line_width)
+        plt.plot(loop_data.e_data, loop_data.p_data, label=legend)
     plt.legend(prop={'size': legend_size})
     if output_header is None or output_header == 'auto':
         output_header = _getCommonPrefix(txt_files)
