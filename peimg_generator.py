@@ -60,6 +60,15 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
                         # e.g. P_range = [-80, 80]
                     # If use 'auto', the range will be adapted to data
 
+energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
+                    # Use 'on' or 'off'
+
+loop_to_plot = 'default'    # To select which loop to plot (usually for double bipolar data)
+                            # 'default': All data will be plotted
+                            # 'first': First loop of the data
+                            # 'last': Last loop of the data
+                            # 'middle': Middle loop of the data (for double bipolar, it is point 50-150)
+
 output_header = 'auto'  # Prefix name of output image file
                         # Any string or blank is ok
                             # e.g. output_header = 'BFO_1'
@@ -88,7 +97,6 @@ legend_pos = 'lower right'  # Position of legend in the graph
 legend_size = 10    # Size of legend
 
 #--------------------------------------------------------------------------------------------------------------------#
-
 
 graph_params={'font.family':'serif',
         'font.serif':'Times New Roman',
@@ -141,6 +149,7 @@ class loop:
         self.pr = None
         self.wrec = None
         self.eff = None
+        self.point_number = None
         self.readData(area_set, thickness_set)
         
     def processLine(self, line: str) -> None:
@@ -163,6 +172,7 @@ class loop:
         if type(thickness_set) != float and type(thickness_set) != int:
             thickness_set = None
         self._computePE(area_set, thickness_set)
+        self._selectLoop()
         self._computeEnergy()
 
     def selectLegend(self, legend_type: str) -> str:
@@ -194,6 +204,10 @@ class loop:
             self.e_data = pe_data[:, 2]
         else:
             self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
+
+    def _selectLoop(self):
+        """To select which loop of data to plot"""
+        pass
 
     def _computeEnergy(self) -> None:
         """Wrec and efficiency computation"""
@@ -229,7 +243,7 @@ class loop:
             self.__pmaxLine(line)
         elif line.startswith('Pr ('):
             self.__prLine(line)
-        elif line.startswith('Point\t'):
+        elif line.startswith('Point'):
             self.__pointLine(line)
 
     def __pmaxLine(self, line: str) -> None:
@@ -241,6 +255,17 @@ class loop:
         self.pr = float(line.split('\t')[1])
 
     def __pointLine(self, line:str) -> None:
+        """To process lines beginning with 'point'"""
+        if line[5] == 's':
+            self.___pointsLine(line)
+        elif line[5] == '\t':
+            self.___pointModeLine(line)
+
+    def ___pointsLine(self, line:str) -> None:
+        """To read number of points"""
+        self.point_number = int(line.split('\t')[1])
+
+    def ___pointModeLine(self, line:str) -> None:
         """To detect data mode, volt or elecfield"""
         if line.split('\t')[2].startswith('Field'):
             self.fieldmode = True
