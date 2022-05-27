@@ -80,14 +80,14 @@ image_type = 'svg'  # Filetype of output image
 
 line_width = 1.5   # Width of loop lines
 
-legend_type = None   # Type of legend
+legend_type = None   # Type of legend in PE plot
                             # If use 'volt', the legend will be the largest voltage of each loop
                             # If use 'elecfield', the legend will be the largest electric field of each loop
                             # If use 'filename', the legend will be the name of each data file
                             # If use None, there will be no legend
                                 # e.g. legend_type = None
 
-legend_pos = 'lower right'  # Position of legend in the graph
+legend_pos = 'lower right'  # Position of legend in PE plot
                             # The value can be ('upper/center/lower') + ('left/right/center' or 'best')
                                 # e.g. legend_pos = 'lower right'
                                 # e.g. legend_pos = 'center'
@@ -110,7 +110,7 @@ graph_params={'font.family':'serif',
         'legend.loc': legend_pos,
         'legend.frameon': False,
         'legend.facecolor': 'none',
-        'legend.fontsize': legend_size
+        #'legend.fontsize': legend_size
         }
 rcParams.update(graph_params)
 
