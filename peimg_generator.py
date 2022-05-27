@@ -35,7 +35,7 @@ import time
 # Vital Parameters #
 #------------------#
 
-thickness_set = 'auto'    # Total thickness of film (um)
+thickness_set = 0.36    # Total thickness of film (um)
                         # e.g. thickness_set = 0.39
                         # If use 'auto', thickness will be read from data file
 
@@ -80,7 +80,7 @@ image_type = 'svg'  # Filetype of output image
 
 line_width = 1.5   # Width of loop lines
 
-legend_type = 'elecfield'   # Type of legend
+legend_type = None   # Type of legend
                             # If use 'volt', the legend will be the largest voltage of each loop
                             # If use 'elecfield', the legend will be the largest electric field of each loop
                             # If use 'filename', the legend will be the name of each data file
@@ -100,6 +100,7 @@ legend_size = 10    # Size of legend
 
 graph_params={'font.family':'serif',
         'font.serif':'Times New Roman',
+        "mathtext.fontset":'stix',
         'font.style':'normal',
         'font.weight':'bold',
         'font.size': 12,
@@ -108,19 +109,58 @@ graph_params={'font.family':'serif',
         'lines.linewidth': line_width,
         'legend.loc': legend_pos,
         'legend.frameon': False,
-        'legend.facecolor': 'none'
+        'legend.facecolor': 'none',
+        'legend.fontsize': legend_size
         }
 rcParams.update(graph_params)
 
-plt.xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
-plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
-plt.axhline(y=0, ls='-', c='black', linewidth=1)
-plt.axvline(x=0, ls='-', c='black', linewidth=1)
+def plotPE(all_loopdata, suffix) -> None:
+    """Main function of PE-loop plotting"""
+    _setPELayout()
+    for loop_data in all_loopdata:
+        legend = loop_data.selectLegend(legend_type)
+        plt.plot(loop_data.e_data, loop_data.p_data, label=legend)
+    plt.legend()
+    fig_path = 'pe_' + suffix + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
+    plt.savefig(fig_path, transparent=True)
+    plt.cla()
 
-if type(E_range) == list:
-    plt.xlim(*E_range)
-if type(P_range) == list:
-    plt.ylim(*P_range)
+def plotPmaxPr(all_loopdata, suffix) -> None:
+    """Main function of Pmax Pr-Electric field curves"""
+    plt.xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
+    plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
+
+    field_data = np.array([loop.max_elecfield for loop in all_loopdata])
+    pmax_data = np.array([loop.pmax for loop in all_loopdata])
+    pr_data = np.array([loop.pr for loop in all_loopdata])
+    delta_p = pmax_data - pr_data
+
+    plt.xlim(0, max(field_data)*1.05)
+    plt.ylim(0, max(pmax_data)*1.05)
+
+    plt.plot(field_data, pmax_data, marker='s', color='k', label=r'$P_{max}$')
+    plt.plot(field_data, pr_data, marker='o', color='r', label=r'$P_{r}$')
+    plt.plot(field_data, delta_p, marker='^', color='b', label=r'$\Delta P$')
+    plt.legend(loc='upper left')
+
+    fig_path = 'pmaxpr_' + suffix + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
+    plt.savefig(fig_path, transparent=True)
+    plt.cla()
+
+def plotEnergyCurve(all_loopdata) -> None:
+    """Main function of Wrec \eta-Electric filed curves"""
+    pass
+
+def _setPELayout() -> None:
+    plt.xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
+    plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
+    plt.axhline(y=0, ls='-', c='black', linewidth=1)
+    plt.axvline(x=0, ls='-', c='black', linewidth=1)
+
+    if type(E_range) == list:
+        plt.xlim(*E_range)
+    if type(P_range) == list:
+        plt.ylim(*P_range)
 
 def _getCommonPrefix(filenames: list) -> str:
     result = ''
@@ -199,7 +239,7 @@ class loop:
             self.p_data *= correct_rate
         if thickness_set:
             self.thickness = thickness_set
-            self.max_elecfield *= self.max_volt / thickness_set * 10    # 10 is to turn unit kV/mm to kV/cm
+            self.max_elecfield = self.max_volt / thickness_set * 10    # 10 is to turn unit kV/mm to kV/cm
         if self.fieldmode:
             self.e_data = pe_data[:, 2]
         else:
@@ -298,13 +338,11 @@ if __name__ == '__main__':
     txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
     all_loopdata = [loop(file, area_set, thickness_set) for file in txt_files]
     all_loopdata.sort(key=lambda x: x.max_elecfield)
-    for loop_data in all_loopdata:
-        legend = loop_data.selectLegend(legend_type)
-        plt.plot(loop_data.e_data, loop_data.p_data, label=legend)
-    plt.legend(prop={'size': legend_size})
     if output_header is None or output_header == 'auto':
         output_header = _getCommonPrefix(txt_files)
     if not output_header.endswith('_'):
         output_header += '_'
-    fig_path = 'pe_' + output_header + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
-    plt.savefig(fig_path, transparent=True)
+    plotPE(all_loopdata, output_header)
+    if energy_mode == 'on':
+        plotPmaxPr(all_loopdata, output_header)
+        plotEnergyCurve(all_loopdata)
