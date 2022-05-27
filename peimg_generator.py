@@ -63,7 +63,7 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
 energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
 
-loop_to_plot = 'default'    # To select which loop to plot (usually for double bipolar data)
+loop_to_plot = 'first'    # To select which loop to plot (usually for double bipolar data)
                             # 'default': All data will be plotted
                             # 'first': First loop of the data
                             # 'last': Last loop of the data
@@ -94,7 +94,7 @@ legend_pos = 'lower right'  # Position of legend in PE plot
                                 # e.g. legend_pos = 'best'
                             # If use 'best', the legend will be autoplaced to a reasonable position
 
-legend_size = 10    # Size of legend
+#legend_size = 10    # Size of legend
 
 #--------------------------------------------------------------------------------------------------------------------#
 
@@ -245,9 +245,22 @@ class loop:
         else:
             self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
 
-    def _selectLoop(self):
+    def _selectLoop(self) -> None:
         """To select which loop of data to plot"""
-        pass
+        if loop_to_plot is None or loop_to_plot == 'default':
+            return
+        half_point = self.point_number//2
+        if loop_to_plot == 'first':
+            self.p_data = self.p_data[:half_point + 1]
+            self.e_data = self.e_data[:half_point + 1]
+        elif loop_to_plot == 'last':
+            self.p_data = self.p_data[half_point:]
+            self.e_data = self.e_data[half_point:]
+        elif loop_to_plot == 'middle':
+            quarter1_point = self.point_number//4
+            quarter3_point = self.point_number - self.point_number//4
+            self.p_data = self.p_data[quarter1_point:quarter3_point]
+            self.e_data = self.e_data[quarter1_point:quarter3_point]
 
     def _computeEnergy(self) -> None:
         """Wrec and efficiency computation"""
