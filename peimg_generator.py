@@ -26,6 +26,7 @@ Wish you a smooth experiment!
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import rcParams
+from scipy import integrate
 import os
 import time
 
@@ -259,12 +260,36 @@ class loop:
         elif loop_to_plot == 'middle':
             quarter1_point = self.point_number//4
             quarter3_point = self.point_number - self.point_number//4
-            self.p_data = self.p_data[quarter1_point:quarter3_point]
-            self.e_data = self.e_data[quarter1_point:quarter3_point]
+            self.p_data = -self.p_data[quarter1_point:quarter3_point]
+            self.e_data = -self.e_data[quarter1_point:quarter3_point]
 
     def _computeEnergy(self) -> None:
         """Wrec and efficiency computation"""
-        pass
+        p_data = self.p_data
+        e_data = self.e_data
+        start_point = 0
+        for i in range(0, self.point_number):
+            if p_data[i] + p_data[i+1] > 0:
+                start_point = i
+                break
+        max_point = 0
+        for i in range(0, self.point_number):
+            if p_data[i+1] < p_data[i]:
+                max_point = i
+                break
+        back_point = 0
+        for i in range(max_point+1, self.point_number):
+            if e_data[i-1] + e_data[i] < 0:
+                back_point = i
+                break
+        p_charge = p_data[start_point:max_point+1]
+        e_charge = e_data[start_point:max_point+1]
+        p_rec = p_data[max_point:back_point]
+        e_rec = e_data[max_point:back_point]
+        w_rec = -integrate.trapz(e_rec, p_rec) / 1000
+        w_all = integrate.trapz(e_charge, p_charge) / 1000
+        self.wrec = w_rec
+        self.eff = w_rec/w_all
 
     def _peLine(self, line: str) -> None:
         """To process pe-data line"""
