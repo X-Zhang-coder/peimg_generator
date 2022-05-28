@@ -44,15 +44,6 @@ area_set = 'auto'    # Actual area of electrode (cm2)
                     # e.g. area_set = 0.0005
                     # If use 'auto', area will be read from data file
 
-loop_to_plot = 'first'    # To select which loop to plot (usually for double bipolar data)
-                            # !!!
-                            # For standard bipolar, 'default' must be used
-
-                            # 'default': All data will be plotted
-                            # 'first': First loop of the data
-                            # 'last': Last loop of the data
-                            # 'middle': Middle loop of the data (for double bipolar, it is point 50-150)
-
 #--------------------------------------------------------------------------------------------------------------------#
 
 #------------------#
@@ -72,6 +63,12 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
 
 energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
+
+loop_to_plot = 'first'    # To select which loop to plot (only for double bipolar data)
+                            # 'default': All data will be plotted
+                            # 'first': First loop of the data
+                            # 'last': Last loop of the data
+                            # 'middle': Middle loop of the data (for double bipolar, it is point 50-150)
 
 output_header = 'auto'  # Prefix name of output image file
                         # Any string or blank is ok
@@ -200,6 +197,7 @@ class loop:
     def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
         self.file_dir = file_dir
         self.file_name = os.path.basename(file_dir)
+        self.testmode = ''
         self.fieldmode = False
         self.pe_str = ''
         self.p_data = None
@@ -270,20 +268,21 @@ class loop:
 
     def _selectLoop(self) -> None:
         """To select which loop of data to plot"""
-        if loop_to_plot is None or loop_to_plot == 'default':
-            return
-        half_point = self.point_number//2
-        if loop_to_plot == 'first':
-            self.p_data = self.p_data[:half_point + 1]
-            self.e_data = self.e_data[:half_point + 1]
-        elif loop_to_plot == 'last':
-            self.p_data = self.p_data[half_point:]
-            self.e_data = self.e_data[half_point:]
-        elif loop_to_plot == 'middle':
-            quarter1_point = self.point_number//4
-            quarter3_point = self.point_number - self.point_number//4
-            self.p_data = -self.p_data[quarter1_point:quarter3_point]
-            self.e_data = -self.e_data[quarter1_point:quarter3_point]
+        if self.testmode == 'Double Bipolar':
+            if loop_to_plot is None or loop_to_plot == 'default':
+                return
+            half_point = self.point_number//2
+            if loop_to_plot == 'first':
+                self.p_data = self.p_data[:half_point + 1]
+                self.e_data = self.e_data[:half_point + 1]
+            elif loop_to_plot == 'last':
+                self.p_data = self.p_data[half_point:]
+                self.e_data = self.e_data[half_point:]
+            elif loop_to_plot == 'middle':
+                quarter1_point = self.point_number//4
+                quarter3_point = self.point_number - self.point_number//4
+                self.p_data = -self.p_data[quarter1_point:quarter3_point]
+                self.e_data = -self.e_data[quarter1_point:quarter3_point]
 
     def _computeEnergy(self) -> None:
         """Wrec and efficiency computation"""
@@ -345,6 +344,8 @@ class loop:
             self.__prLine(line)
         elif line.startswith('Point'):
             self.__pointLine(line)
+        elif line.startswith('Profile:'):
+            self.__profileLine(line)
 
     def __pmaxLine(self, line: str) -> None:
         """To process PMax line"""
@@ -353,6 +354,10 @@ class loop:
     def __prLine(self, line: str) -> None:
         """To process Pr line"""
         self.pr = float(line.split('\t')[1])
+    
+    def __profileLine(self, line: str) -> None:
+        """To read test mode"""
+        self.testmode = line.split('\t')[1].strip()
 
     def __pointLine(self, line:str) -> None:
         """To process lines beginning with 'point'"""
