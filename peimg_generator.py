@@ -8,6 +8,7 @@ Operating environment (required):
     Python environment
     numpy
     matplotlib
+    scipy
 
 If there is no environment, please install python3.x,
 and then install modules 'numpy' and 'matplotlib' (Run 'pip install numpy matplotlib' in command line).
@@ -36,7 +37,7 @@ import time
 # Vital Parameters #
 #------------------#
 
-thickness_set = 0.36    # Total thickness of film (um)
+thickness_set = 'auto'    # Total thickness of film (um)
                         # e.g. thickness_set = 0.39
                         # If use 'auto', thickness will be read from data file
 
@@ -163,12 +164,29 @@ def plotPmaxPr(all_loopdata:list, suffix:str) -> np.array:
     return np.array([field_data, pmax_data, pr_data, delta_p])
 
 def plotEnergyCurve(all_loopdata:list, suffix:str) -> np.array:
-    """Main function of Wrec \eta-Electric filed curves"""
+    """Main function of Wrec η-Electric filed curves"""
     field_data = np.array([loop.max_elecfield for loop in all_loopdata])
     wrec_data = np.array([loop.wrec for loop in all_loopdata])
     eff_data = np.array([loop.eff for loop in all_loopdata])
-    #output = np.concatenate(field_data, wrec_data, eff_data)
-    
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.spines['left'].set_color('r')
+    ax1.tick_params(axis='y', colors='r')
+    ax1.set_xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
+    ax1.set_ylabel('$W_{rec}$ (J/cm$^3$)', fontdict={'weight':'bold', 'size':16, 'color':'r'})
+    ax1.set_xlim(0, max(field_data)*1.05)
+    ax1.set_ylim(0, max(wrec_data)*1.05)
+    ax1.plot(field_data, wrec_data, marker='s', color='r')
+    ax2 = ax1.twinx()
+    ax2.spines['right'].set_color('b')
+    ax2.spines['left'].set_color('r')
+    ax2.tick_params(axis='y', colors='b')
+    ax2.set_ylabel('$\eta$ (%)', fontdict={'weight':'bold', 'size':16, 'color':'b'})
+    ax2.set_ylim(0, 100)
+    ax2.plot(field_data, eff_data*100, marker='o', color='b')
+    fig_path = 'wrec_' + suffix + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
+    plt.savefig(fig_path, transparent=True)
+    plt.cla()
     return np.array([wrec_data, eff_data])
     
 def _setPELayout() -> None:
