@@ -143,7 +143,7 @@ def plotPandWrec(all_loopdata:list, suffix:str) -> None:
 
 def plotPmaxPr(all_loopdata:list, suffix:str) -> np.array:
     """Main function of Pmax Pr-Electric field curves"""
-    plt.xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
+    plt.xlabel('Electric Field (kV/cm)', fontdict={'weight':'bold', 'size':16})
     plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
 
     field_data = np.array([loop.max_elecfield for loop in all_loopdata])
@@ -165,7 +165,7 @@ def plotPmaxPr(all_loopdata:list, suffix:str) -> np.array:
     return np.array([field_data, pmax_data, pr_data, delta_p])
 
 def plotEnergyCurve(all_loopdata:list, suffix:str) -> np.array:
-    """Main function of Wrec η-Electric filed curves"""
+    """Main function of Wrec η-Electric Field curves"""
     field_data = np.array([loop.max_elecfield for loop in all_loopdata])
     wrec_data = np.array([loop.wrec for loop in all_loopdata])
     eff_data = np.array([loop.eff for loop in all_loopdata])
@@ -173,7 +173,7 @@ def plotEnergyCurve(all_loopdata:list, suffix:str) -> np.array:
     ax1 = fig.add_subplot(111)
     ax1.spines['left'].set_color('r')
     ax1.tick_params(axis='y', colors='r')
-    ax1.set_xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
+    ax1.set_xlabel('Electric Field (kV/cm)', fontdict={'weight':'bold', 'size':16})
     ax1.set_ylabel('$W_{rec}$ (J/cm$^3$)', fontdict={'weight':'bold', 'size':16, 'color':'r'})
     ax1.set_xlim(0, max(field_data)*1.05)
     ax1.set_ylim(0, max(wrec_data)*1.05)
@@ -191,7 +191,7 @@ def plotEnergyCurve(all_loopdata:list, suffix:str) -> np.array:
     return np.array([wrec_data, eff_data])
     
 def _setPELayout() -> None:
-    plt.xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
+    plt.xlabel('Electric Field (kV/cm)', fontdict={'weight':'bold', 'size':16})
     plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
     plt.axhline(y=0, ls='-', c='black', linewidth=1)
     plt.axvline(x=0, ls='-', c='black', linewidth=1)
@@ -313,7 +313,7 @@ class loop:
                 start_point = i
                 break
         max_point = 0
-        for i in range(0, self.point_number):
+        for i in range(start_point+1, self.point_number):
             if p_data[i+1] < p_data[i]:
                 max_point = i
                 break
