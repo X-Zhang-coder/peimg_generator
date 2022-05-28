@@ -44,6 +44,15 @@ area_set = 'auto'    # Actual area of electrode (cm2)
                     # e.g. area_set = 0.0005
                     # If use 'auto', area will be read from data file
 
+loop_to_plot = 'first'    # To select which loop to plot (usually for double bipolar data)
+                            # !!!
+                            # For standard bipolar, 'default' must be used
+
+                            # 'default': All data will be plotted
+                            # 'first': First loop of the data
+                            # 'last': Last loop of the data
+                            # 'middle': Middle loop of the data (for double bipolar, it is point 50-150)
+
 #--------------------------------------------------------------------------------------------------------------------#
 
 #------------------#
@@ -63,12 +72,6 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
 
 energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
-
-loop_to_plot = 'first'    # To select which loop to plot (usually for double bipolar data)
-                            # 'default': All data will be plotted
-                            # 'first': First loop of the data
-                            # 'last': Last loop of the data
-                            # 'middle': Middle loop of the data (for double bipolar, it is point 50-150)
 
 output_header = 'auto'  # Prefix name of output image file
                         # Any string or blank is ok
@@ -115,7 +118,7 @@ graph_params={'font.family':'serif',
         }
 rcParams.update(graph_params)
 
-def plotPE(all_loopdata, suffix) -> None:
+def plotPE(all_loopdata:list, suffix:str) -> None:
     """Main function of PE-loop plotting"""
     _setPELayout()
     for loop_data in all_loopdata:
@@ -126,7 +129,20 @@ def plotPE(all_loopdata, suffix) -> None:
     plt.savefig(fig_path, transparent=True)
     plt.cla()
 
-def plotPmaxPr(all_loopdata, suffix) -> None:
+def plotPandWrec(all_loopdata:list, suffix:str) -> None:
+    """Plot Pmax Pr Wrec and η and save data"""
+    polarization_result = plotPmaxPr(all_loopdata, suffix)
+    energy_result = plotEnergyCurve(all_loopdata, suffix)
+    data_header = 'Electric Field,Polarization,Polarization,Polarization,Wrec,η\n\
+        kV/cm,μC/cm2,μC/cm2,μC/cm2,J/cm3,%\n\
+        ,Pmax,Pr,ΔP,,\n'
+    time_temp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+    np.savetxt(f'wrec_{suffix}_{time_temp}.csv', \
+        np.concatenate((polarization_result, energy_result)).T, \
+        delimiter=',', \
+        header=data_header)
+
+def plotPmaxPr(all_loopdata:list, suffix:str) -> np.array:
     """Main function of Pmax Pr-Electric field curves"""
     plt.xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
     plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
@@ -147,11 +163,17 @@ def plotPmaxPr(all_loopdata, suffix) -> None:
     fig_path = 'pmaxpr_' + suffix + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
     plt.savefig(fig_path, transparent=True)
     plt.cla()
+    return np.array([field_data, pmax_data, pr_data, delta_p])
 
-def plotEnergyCurve(all_loopdata) -> None:
+def plotEnergyCurve(all_loopdata:list, suffix:str) -> np.array:
     """Main function of Wrec \eta-Electric filed curves"""
-    pass
-
+    field_data = np.array([loop.max_elecfield for loop in all_loopdata])
+    wrec_data = np.array([loop.wrec for loop in all_loopdata])
+    eff_data = np.array([loop.eff for loop in all_loopdata])
+    #output = np.concatenate(field_data, wrec_data, eff_data)
+    
+    return np.array([wrec_data, eff_data])
+    
 def _setPELayout() -> None:
     plt.xlabel('Electric Filed (kV/cm)', fontdict={'weight':'bold', 'size':16})
     plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
@@ -239,8 +261,8 @@ class loop:
             self.pr *= correct_rate
             self.p_data *= correct_rate
         if thickness_set:
+            self.max_elecfield *= self.thickness / thickness_set
             self.thickness = thickness_set
-            self.max_elecfield = self.max_volt / thickness_set * 10    # 10 is to turn unit kV/mm to kV/cm
         if self.fieldmode:
             self.e_data = pe_data[:, 2]
         else:
@@ -382,5 +404,4 @@ if __name__ == '__main__':
         output_header += '_'
     plotPE(all_loopdata, output_header)
     if energy_mode == 'on':
-        plotPmaxPr(all_loopdata, output_header)
-        plotEnergyCurve(all_loopdata)
+        plotPandWrec(all_loopdata, output_header)
