@@ -315,8 +315,9 @@ class loop:
         max_point = 0
         for i in range(start_point+1, self.point_number):
             if p_data[i+1] < p_data[i]:
-                max_point = i
-                break
+                if p_data[i+2] < p_data[i+1]:
+                    max_point = i
+                    break
         back_point = 0
         for i in range(max_point+1, self.point_number):
             if e_data[i-1] + e_data[i] < 0:
