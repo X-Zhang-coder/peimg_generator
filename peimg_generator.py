@@ -133,11 +133,12 @@ def plotPandWrec(all_loopdata:list, suffix:str) -> None:
     energy_result = plotEnergyCurve(all_loopdata, suffix)
     data_header = 'Electric Field,Polarization,Polarization,Polarization,Wrec,η\n\
         kV/cm,μC/cm2,μC/cm2,μC/cm2,J/cm3,%\n\
-        ,Pmax,Pr,ΔP,,\n'
+        ,Pmax,Pr,ΔP,,'
     time_temp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     np.savetxt(f'wrec_{suffix}_{time_temp}.csv', \
         np.concatenate((polarization_result, energy_result)).T, \
         delimiter=',', \
+        comments = ' ', \
         header=data_header)
 
 def plotPmaxPr(all_loopdata:list, suffix:str) -> np.array:
