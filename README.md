@@ -1,5 +1,11 @@
 # peimg_generator
 
+## 环境要求
+- Python 3.x
+- numpy
+- matplotlib
+- scipy
+
 ## 使用方法
 - 将 peimg_generator.py 和所有需要处理的 radiant 测 PE 输出的 txt 文件置于同一目录
 - 设置厚度、电极面积等关键参数 (若测试时正确输入可跳过)
