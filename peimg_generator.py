@@ -37,7 +37,7 @@ import time
 # Vital Parameters #
 #------------------#
 
-thickness_set = 'auto'    # Total thickness of film (um)
+thickness_set = 0.345    # Total thickness of film (um)
                         # e.g. thickness_set = 0.39
                         # If use 'auto', thickness will be read from data file
 
@@ -80,9 +80,7 @@ image_type = 'svg'  # Filetype of output image
                     # The value can be selected such as 'png', 'jpg' (convenient for watching on a phone)
                     # Or 'svg' (a vector illustration type)
 
-line_width = 1.5   # Width of loop lines
-
-legend_type = None   # Type of legend in PE plot
+legend_type = 'elecfield'   # Type of legend in PE plot
                             # If use 'volt', the legend will be the largest voltage of each loop
                             # If use 'elecfield', the legend will be the largest electric field of each loop
                             # If use 'filename', the legend will be the name of each data file
@@ -96,23 +94,40 @@ legend_pos = 'lower right'  # Position of legend in PE plot
                                 # e.g. legend_pos = 'best'
                             # If use 'best', the legend will be autoplaced to a reasonable position
 
-#legend_size = 10    # Size of legend
-
 #--------------------------------------------------------------------------------------------------------------------#
 
-graph_params={'font.family':'serif',
-        'font.serif':'Times New Roman',
+graph_params={
+        'figure.figsize' : (6.432, 4.923),
+        'font.family' : 'serif',
+        'font.serif' : 'Times New Roman',
         "mathtext.fontset":'stix',
         'font.style':'normal',
         'font.weight':'bold',
-        'font.size': 12,
+        'font.size': 15,
+        'axes.labelsize' : 25,
+        'axes.labelweight' : 'bold',
+        'axes.linewidth' : 3,
+        'axes.facecolor' : 'none',
         'xtick.direction': 'in',
+        'xtick.major.size' : 6,
+        'xtick.major.width' : 2,
+        'xtick.major.pad' : 5,
+        'xtick.minor.visible' : False,
+        'xtick.minor.size' : 4,
+        'xtick.minor.width' : 2,
         'ytick.direction': 'in',
-        'lines.linewidth': line_width,
+        'ytick.major.size' : 6,
+        'ytick.major.width' : 2,
+        'ytick.major.pad' : 5,
+        'ytick.minor.visible' : False,
+        'ytick.minor.size' : 4,
+        'ytick.minor.width' : 2,
+        'lines.linewidth': 2,
         'legend.loc': legend_pos,
         'legend.frameon': False,
         'legend.facecolor': 'none',
-        #'legend.fontsize': legend_size
+        'savefig.bbox' : 'tight',
+        'savefig.facecolor' : 'none'
         }
 rcParams.update(graph_params)
 
@@ -124,7 +139,7 @@ def plotPE(all_loopdata:list, suffix:str) -> None:
         plt.plot(loop_data.e_data, loop_data.p_data, label=legend)
     plt.legend()
     fig_path = 'pe_' + suffix + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
-    plt.savefig(fig_path, transparent=True)
+    plt.savefig(fig_path)
     plt.cla()
 
 def plotPandWrec(all_loopdata:list, suffix:str) -> None:
@@ -143,8 +158,8 @@ def plotPandWrec(all_loopdata:list, suffix:str) -> None:
 
 def plotPmaxPr(all_loopdata:list, suffix:str) -> np.array:
     """Main function of Pmax Pr-Electric field curves"""
-    plt.xlabel('Electric Field (kV/cm)', fontdict={'weight':'bold', 'size':16})
-    plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
+    plt.xlabel('Electric Field (kV/cm)')
+    plt.ylabel('Polarization (μC/cm²)')
 
     field_data = np.array([loop.max_elecfield for loop in all_loopdata])
     pmax_data = np.array([loop.pmax for loop in all_loopdata])
@@ -160,7 +175,7 @@ def plotPmaxPr(all_loopdata:list, suffix:str) -> np.array:
     plt.legend(loc='upper left')
 
     fig_path = 'pmaxpr_' + suffix + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
-    plt.savefig(fig_path, transparent=True)
+    plt.savefig(fig_path)
     plt.cla()
     return np.array([field_data, pmax_data, pr_data, delta_p])
 
@@ -173,8 +188,8 @@ def plotEnergyCurve(all_loopdata:list, suffix:str) -> np.array:
     ax1 = fig.add_subplot(111)
     ax1.spines['left'].set_color('r')
     ax1.tick_params(axis='y', colors='r')
-    ax1.set_xlabel('Electric Field (kV/cm)', fontdict={'weight':'bold', 'size':16})
-    ax1.set_ylabel('$W_{rec}$ (J/cm$^3$)', fontdict={'weight':'bold', 'size':16, 'color':'r'})
+    ax1.set_xlabel('Electric Field (kV/cm)')
+    ax1.set_ylabel('$W_{rec}$ (J/cm$^3$)', fontdict={'color':'r'})
     ax1.set_xlim(0, max(field_data)*1.05)
     ax1.set_ylim(0, max(wrec_data)*1.05)
     ax1.plot(field_data, wrec_data, marker='s', color='r')
@@ -182,17 +197,17 @@ def plotEnergyCurve(all_loopdata:list, suffix:str) -> np.array:
     ax2.spines['right'].set_color('b')
     ax2.spines['left'].set_color('r')
     ax2.tick_params(axis='y', colors='b')
-    ax2.set_ylabel('$\eta$ (%)', fontdict={'weight':'bold', 'size':16, 'color':'b'})
+    ax2.set_ylabel('$\eta$ (%)', fontdict={'color':'b'})
     ax2.set_ylim(0, 100)
     ax2.plot(field_data, eff_data*100, marker='o', color='b')
     fig_path = 'wrec_' + suffix + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
-    plt.savefig(fig_path, transparent=True)
+    plt.savefig(fig_path)
     plt.cla()
     return np.array([wrec_data, eff_data])
     
 def _setPELayout() -> None:
-    plt.xlabel('Electric Field (kV/cm)', fontdict={'weight':'bold', 'size':16})
-    plt.ylabel('Polarization (μC/cm²)', fontdict={'weight':'bold', 'size':16})
+    plt.xlabel('Electric Field (kV/cm)')
+    plt.ylabel('Polarization (μC/cm²)')
     plt.axhline(y=0, ls='-', c='black', linewidth=1)
     plt.axvline(x=0, ls='-', c='black', linewidth=1)
 
@@ -262,9 +277,9 @@ class loop:
         elif legend_type == 'filename':
             legend = self.file_name[:-4]
         elif legend_type == 'volt':
-            legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + 'V'
+            legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + ' V'
         else:
-            legend = str(int(max(self.e_data)/100 + 0.5) * 100) + 'kV/cm'
+            legend = str(int(max(self.e_data)/100 + 0.5) * 100) + ' kV/cm'
         return legend
 
     def _computePE(self, area_set: float=None, thickness_set: float=None) -> None:
