@@ -226,8 +226,8 @@ def _getCommonPrefix(filenames: list) -> str:
     return result
 
 
-class loop:
-    """Data of a loop"""
+class elecdata:
+    """Data of an electric test"""
     def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
         self.file_dir = file_dir
         self.file_name = os.path.basename(file_dir)
@@ -239,21 +239,19 @@ class loop:
         self.max_volt = None
         self.max_elecfield = None
         self.thickness = None
+        self.thickness_set = thickness
         self.area = None
-        self.pmax = None
-        self.pr = None
-        self.wrec = None
-        self.eff = None
+        self.area_set = area
         self.point_number = None
-        self.readData(area_set, thickness_set)
+        self.readData()
         
     def processLine(self, line: str) -> None:
-        """To process data of a line to loop"""
+        """To process data of a line to elecdata"""
         func = self.lineProcessFunc.get(line[0])
         if func:
             func(self, line)
 
-    def readData(self, area_set: float=None, thickness_set: float=None) -> None:
+    def readData(self) -> None:
         """
         To transform pe_data to array format, 
         and calculate energy storage density and efficiency.
@@ -262,90 +260,14 @@ class loop:
             lines = f.readlines()
         for line in lines:
             self.processLine(line)
-        if type(area_set) != float and type(area_set) != int:
-            area_set = None
-        if type(thickness_set) != float and type(thickness_set) != int:
-            thickness_set = None
-        self._computePE(area_set, thickness_set)
-        self._selectLoop()
-        self._computeEnergy()
+        if type(self.area_set) != float and type(self.area_set) != int:
+            self.area_set = None
+        if type(self.thickness_set) != float and type(self.thickness_set) != int:
+            self.thickness_set = None
+        self._processData()
 
-    def selectLegend(self, legend_type: str) -> str:
-        """To get legend of a loop data when plotting"""
-        if legend_type is None:
-            legend = None
-        elif legend_type == 'filename':
-            legend = self.file_name[:-4]
-        elif legend_type == 'volt':
-            legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + ' V'
-        else:
-            legend = str(int(max(self.e_data)/100 + 0.5) * 100) + ' kV/cm'
-        return legend
-
-    def _computePE(self, area_set: float=None, thickness_set: float=None) -> None:
-        """PE data computation"""
-        pe_data = np.array(np.mat(self.pe_str)).reshape(-1,4)
-        self.p_data = pe_data[:, 3]
-        if area_set:
-            correct_rate = self.area / area_set
-            self.area = area_set
-            self.pmax *= correct_rate
-            self.pr *= correct_rate
-            self.p_data *= correct_rate
-        if thickness_set:
-            self.max_elecfield *= self.thickness / thickness_set
-            self.thickness = thickness_set
-        if self.fieldmode:
-            self.e_data = pe_data[:, 2]
-        else:
-            self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
-
-    def _selectLoop(self) -> None:
-        """To select which loop of data to plot"""
-        if self.testmode == 'Double Bipolar':
-            if loop_to_plot is None or loop_to_plot == 'default':
-                return
-            half_point = self.point_number//2
-            if loop_to_plot == 'first':
-                self.p_data = self.p_data[:half_point + 1]
-                self.e_data = self.e_data[:half_point + 1]
-            elif loop_to_plot == 'last':
-                self.p_data = self.p_data[half_point:]
-                self.e_data = self.e_data[half_point:]
-            elif loop_to_plot == 'middle':
-                quarter1_point = self.point_number//4
-                quarter3_point = self.point_number - self.point_number//4
-                self.p_data = -self.p_data[quarter1_point:quarter3_point]
-                self.e_data = -self.e_data[quarter1_point:quarter3_point]
-
-    def _computeEnergy(self) -> None:
-        """Wrec and efficiency computation"""
-        p_data = self.p_data
-        e_data = self.e_data
-        start_point = 0
-        for i in range(0, self.point_number):
-            if p_data[i] + p_data[i+1] > 0:
-                start_point = i
-                break
-        max_point = 0
-        for i in range(start_point+1, self.point_number):
-            if p_data[i+1] < p_data[i]:
-                if p_data[i+2] < p_data[i+1]:
-                    max_point = i
-                    break
-        back_point = 0
-        for i in range(max_point+1, self.point_number):
-            if e_data[i-1] + e_data[i] < 0:
-                back_point = i
-                break
-        p_charge = p_data[start_point:max_point+1]
-        e_charge = e_data[start_point:max_point+1]
-        p_rec = p_data[max_point:back_point]
-        e_rec = e_data[max_point:back_point]
-        w_rec = -integrate.trapz(e_rec, p_rec) / 1000
-        w_all = integrate.trapz(e_charge, p_charge) / 1000
-        self.wrec = w_rec
-        self.eff = w_rec/w_all
+    def _processData(self):
+        pass
 
     def _peLine(self, line: str) -> None:
         """To process pe-data line"""
@@ -434,9 +356,100 @@ class loop:
         }
 
 
+class peloop(elecdata):
+    """Data of a pe-loop"""
+    def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
+        super(peloop, self).__init__(file_dir=file_dir, area=area, thickness=thickness)
+        self.pmax = None
+        self.pr = None
+        self.wrec = None
+        self.eff = None
+
+    def _processData(self):
+        self._computePE()
+        self._selectLoop()
+        self._computeEnergy()
+
+    def selectLegend(self, legend_type: str) -> str:
+        """To get legend of a elecdata data when plotting"""
+        if legend_type is None:
+            legend = None
+        elif legend_type == 'filename':
+            legend = self.file_name[:-4]
+        elif legend_type == 'volt':
+            legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + ' V'
+        else:
+            legend = str(int(max(self.e_data)/100 + 0.5) * 100) + ' kV/cm'
+        return legend
+
+    def _computePE(self) -> None:
+        """PE data computation"""
+        pe_data = np.array(np.mat(self.pe_str)).reshape(-1,4)
+        self.p_data = pe_data[:, 3]
+        if self.area_set:
+            correct_rate = self.area / self.area_set
+            self.area = self.area_set
+            self.pmax *= correct_rate
+            self.pr *= correct_rate
+            self.p_data *= correct_rate
+        if self.thickness_set:
+            self.max_elecfield *= self.thickness / self.thickness_set
+            self.thickness = self.thickness_set
+        if self.fieldmode:
+            self.e_data = pe_data[:, 2]
+        else:
+            self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
+
+    def _selectLoop(self) -> None:
+        """To select which loop of data to plot"""
+        if self.testmode == 'Double Bipolar':
+            if loop_to_plot is None or loop_to_plot == 'default':
+                return
+            half_point = self.point_number//2
+            if loop_to_plot == 'first':
+                self.p_data = self.p_data[:half_point + 1]
+                self.e_data = self.e_data[:half_point + 1]
+            elif loop_to_plot == 'last':
+                self.p_data = self.p_data[half_point:]
+                self.e_data = self.e_data[half_point:]
+            elif loop_to_plot == 'middle':
+                quarter1_point = self.point_number//4
+                quarter3_point = self.point_number - self.point_number//4
+                self.p_data = -self.p_data[quarter1_point:quarter3_point]
+                self.e_data = -self.e_data[quarter1_point:quarter3_point]
+
+    def _computeEnergy(self) -> None:
+        """Wrec and efficiency computation"""
+        p_data = self.p_data
+        e_data = self.e_data
+        start_point = 0
+        for i in range(0, self.point_number):
+            if p_data[i] + p_data[i+1] > 0:
+                start_point = i
+                break
+        max_point = 0
+        for i in range(start_point+1, self.point_number):
+            if p_data[i+1] < p_data[i]:
+                if p_data[i+2] < p_data[i+1]:
+                    max_point = i
+                    break
+        back_point = 0
+        for i in range(max_point+1, self.point_number):
+            if e_data[i-1] + e_data[i] < 0:
+                back_point = i
+                break
+        p_charge = p_data[start_point:max_point+1]
+        e_charge = e_data[start_point:max_point+1]
+        p_rec = p_data[max_point:back_point]
+        e_rec = e_data[max_point:back_point]
+        w_rec = -integrate.trapz(e_rec, p_rec) / 1000
+        w_all = integrate.trapz(e_charge, p_charge) / 1000
+        self.wrec = w_rec
+        self.eff = w_rec/w_all
+
 if __name__ == '__main__':
     txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
-    all_loopdata = [loop(file, area_set, thickness_set) for file in txt_files]
+    all_loopdata = [peloop(file, area_set, thickness_set) for file in txt_files]
     all_loopdata.sort(key=lambda x: x.max_elecfield)
     if output_header is None or output_header == 'auto':
         output_header = _getCommonPrefix(txt_files)
