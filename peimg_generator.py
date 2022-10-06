@@ -37,7 +37,7 @@ import time
 # Vital Parameters #
 #------------------#
 
-thickness_set = 0.345    # Total thickness of film (um)
+thickness_set = 'auto'    # Total thickness of film (um)
                         # e.g. thickness_set = 0.39
                         # If use 'auto', thickness will be read from data file
 
@@ -62,7 +62,7 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
                         # e.g. P_range = [-80, 80]
                     # If use 'auto', the range will be adapted to data
 
-energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
+energy_mode = 'off'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
 
 loop_to_plot = 'first'    # To select which loop to plot (only for double bipolar data)
@@ -138,8 +138,9 @@ def plotPE(all_loopdata:list, suffix:str) -> None:
         legend = loop_data.selectLegend(legend_type)
         plt.plot(loop_data.e_data, loop_data.p_data, label=legend)
     plt.legend()
-    fig_path = 'pe_' + suffix + time.strftime('%Y%m%d_%H%M%S', time.localtime()) + '.' + image_type
+    fig_path = f'pe_{suffix}{time.strftime("%Y%m%d_%H%M%S", time.localtime())}.{image_type}'
     plt.savefig(fig_path)
+    time_temp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     plt.cla()
 
 def plotPandWrec(all_loopdata:list, suffix:str) -> None:
@@ -243,6 +244,12 @@ class elecdata:
         self.area = None
         self.area_set = area
         self.point_number = None
+
+        self.pmax = None
+        self.pr = None
+        self.wrec = None
+        self.eff = None
+        
         self.readData()
         
     def processLine(self, line: str) -> None:
@@ -360,10 +367,6 @@ class peloop(elecdata):
     """Data of a pe-loop"""
     def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
         super(peloop, self).__init__(file_dir=file_dir, area=area, thickness=thickness)
-        self.pmax = None
-        self.pr = None
-        self.wrec = None
-        self.eff = None
 
     def _processData(self):
         self._computePE()
@@ -394,11 +397,14 @@ class peloop(elecdata):
             self.p_data *= correct_rate
         if self.thickness_set:
             self.max_elecfield *= self.thickness / self.thickness_set
+            if self.fieldmode:
+                self.e_data = pe_data[:, 2] * self.thickness / self.thickness_set
             self.thickness = self.thickness_set
-        if self.fieldmode:
-            self.e_data = pe_data[:, 2]
         else:
-            self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
+            if self.fieldmode:
+                self.e_data = pe_data[:, 2]
+            else:
+                self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
 
     def _selectLoop(self) -> None:
         """To select which loop of data to plot"""
