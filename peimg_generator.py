@@ -399,6 +399,8 @@ class peloop(elecdata):
             self.max_elecfield *= self.thickness / self.thickness_set
             if self.fieldmode:
                 self.e_data = pe_data[:, 2] * self.thickness / self.thickness_set
+            else:
+                self.e_data = pe_data[:, 2] / self.thickness_set * 10  # 10 is to turn unit kV/mm to kV/cm
             self.thickness = self.thickness_set
         else:
             if self.fieldmode:
