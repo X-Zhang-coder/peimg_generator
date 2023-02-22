@@ -51,16 +51,19 @@ area_set = 'auto'    # Actual area of electrode (cm2)
 # Style Parameters #
 #------------------#
 
-E_range = 'auto'    # Range of electirc field (kV/cm)
+E_range = [0,1400]    # Range of electirc field (kV/cm)
                     # Input as [a, b]
                         # e.g. E_range = [-2500, 2500]
                         # e.g. E_range = 'auto'
                     # If use 'auto', the range will be adapted to data
 
-P_range = 'auto'    # Range of polarization intensity (uC/cm2)
+P_range = [0,25]    # Range of polarization intensity (uC/cm2)
                     # Input as [a, b]
                         # e.g. P_range = [-80, 80]
                     # If use 'auto', the range will be adapted to data
+
+zero_start = True   # To select if the loop will be translated to begin at (0,0)
+                    # Use boolean (True or False)
 
 energy_mode = 'off'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
@@ -80,7 +83,7 @@ image_type = 'svg'  # Filetype of output image
                     # The value can be selected such as 'png', 'jpg' (convenient for watching on a phone)
                     # Or 'svg' (a vector illustration type)
 
-legend_type = 'elecfield'   # Type of legend in PE plot
+legend_type = 'filename'   # Type of legend in PE plot
                             # If use 'volt', the legend will be the largest voltage of each loop
                             # If use 'elecfield', the legend will be the largest electric field of each loop
                             # If use 'filename', the legend will be the name of each data file
@@ -135,12 +138,10 @@ def plotPE(all_loopdata:list, suffix:str) -> None:
     """Main function of PE-loop plotting"""
     _setPELayout()
     for loop_data in all_loopdata:
-        legend = loop_data.selectLegend(legend_type)
-        plt.plot(loop_data.e_data, loop_data.p_data, label=legend)
+        plt.plot(loop_data.e_data, loop_data.p_data, label=loop_data.legend)
     plt.legend()
     fig_path = f'pe_{suffix}{time.strftime("%Y%m%d_%H%M%S", time.localtime())}.{image_type}'
     plt.savefig(fig_path)
-    time_temp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     plt.cla()
 
 def plotPandWrec(all_loopdata:list, suffix:str) -> None:
@@ -229,9 +230,10 @@ def _getCommonPrefix(filenames: list) -> str:
 
 class elecdata:
     """Data of an electric test"""
-    def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
+    def __init__(self, file_dir: str='', area: float=None, thickness: float=None, legend_type: float=None) -> None:
         self.file_dir = file_dir
         self.file_name = os.path.basename(file_dir)
+        self.legend = None
         self.testmode = ''
         self.fieldmode = False
         self.pe_str = ''
@@ -276,6 +278,9 @@ class elecdata:
     def _processData(self):
         pass
 
+    def _selectLegend(self, legend_type: str) -> str:
+        pass
+
     def _peLine(self, line: str) -> None:
         """To process pe-data line"""
         if line[3].isdigit():
@@ -308,7 +313,7 @@ class elecdata:
             self.__prLine(line)
         elif line.startswith('Point'):
             self.__pointLine(line)
-        elif line.startswith('Profile:'):
+        elif line.startswith('Profile:') or line.startswith('Preset'):
             self.__profileLine(line)
 
     def __pmaxLine(self, line: str) -> None:
@@ -321,7 +326,7 @@ class elecdata:
     
     def __profileLine(self, line: str) -> None:
         """To read test mode"""
-        self.testmode = line.split('\t')[1].strip()
+        self.testmode = line.split('\t')[-1].strip()
 
     def __pointLine(self, line:str) -> None:
         """To process lines beginning with 'point'"""
@@ -365,25 +370,27 @@ class elecdata:
 
 class peloop(elecdata):
     """Data of a pe-loop"""
-    def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
+    def __init__(self, file_dir: str='', area: float=None, thickness: float=None, zero_start: bool=False, legend_type: float=None) -> None:
+        self.zero_start = zero_start
+        self.legend_type = legend_type
         super(peloop, self).__init__(file_dir=file_dir, area=area, thickness=thickness)
 
     def _processData(self):
         self._computePE()
         self._selectLoop()
+        self._selectLegend()
         self._computeEnergy()
 
-    def selectLegend(self, legend_type: str) -> str:
+    def _selectLegend(self) -> str:
         """To get legend of a elecdata data when plotting"""
-        if legend_type is None:
-            legend = None
-        elif legend_type == 'filename':
-            legend = self.file_name[:-4]
-        elif legend_type == 'volt':
-            legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + ' V'
+        if self.legend_type is None:
+            self.legend = None
+        elif self.legend_type == 'filename':
+            self.legend = self.file_name[:-4]
+        elif self.legend_type == 'volt':
+            self.legend = str(int(max(self.e_data*self.thickness/10)/5 + 0.5) * 5) + ' V'
         else:
-            legend = str(int(max(self.e_data)/100 + 0.5) * 100) + ' kV/cm'
-        return legend
+            self.legend = str(int(max(self.e_data)/100 + 0.5) * 100) + ' kV/cm'
 
     def _computePE(self) -> None:
         """PE data computation"""
@@ -407,6 +414,15 @@ class peloop(elecdata):
                 self.e_data = pe_data[:, 2]
             else:
                 self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
+        if self.zero_start:
+            self.__zeroStart()
+
+    def __zeroStart(self) -> None:
+        E0 = self.e_data[0]
+        P0 = self.p_data[0]
+        self.e_data -= E0
+        self.p_data -= P0
+        self.pr -= P0
 
     def _selectLoop(self) -> None:
         """To select which loop of data to plot"""
@@ -457,8 +473,9 @@ class peloop(elecdata):
 
 if __name__ == '__main__':
     txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
-    all_loopdata = [peloop(file, area_set, thickness_set) for file in txt_files]
-    all_loopdata.sort(key=lambda x: x.max_elecfield)
+    all_loopdata = [peloop(file, area_set, thickness_set, zero_start=zero_start, legend_type=legend_type) for file in txt_files]
+    if legend_type == 'elecfield':
+        all_loopdata.sort(key=lambda x: x.max_elecfield)
     if output_header is None or output_header == 'auto':
         output_header = _getCommonPrefix(txt_files)
     if not output_header.endswith('_'):
