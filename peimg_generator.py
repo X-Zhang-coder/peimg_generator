@@ -51,13 +51,13 @@ area_set = 'auto'    # Actual area of electrode (cm2)
 # Style Parameters #
 #------------------#
 
-E_range = [0,1400]    # Range of electirc field (kV/cm)
+E_range = 'auto'    # Range of electirc field (kV/cm)
                     # Input as [a, b]
                         # e.g. E_range = [-2500, 2500]
                         # e.g. E_range = 'auto'
                     # If use 'auto', the range will be adapted to data
 
-P_range = [0,25]    # Range of polarization intensity (uC/cm2)
+P_range = 'auto'    # Range of polarization intensity (uC/cm2)
                     # Input as [a, b]
                         # e.g. P_range = [-80, 80]
                     # If use 'auto', the range will be adapted to data
@@ -86,7 +86,7 @@ image_type = 'svg'  # Filetype of output image
                     # The value can be selected such as 'png', 'jpg' (convenient for watching on a phone)
                     # Or 'svg' (a vector illustration type)
 
-legend_type = 'filename'   # Type of legend in PE plot
+legend_type = None   # Type of legend in PE plot
                             # If use 'volt', the legend will be the largest voltage of each loop
                             # If use 'elecfield', the legend will be the largest electric field of each loop
                             # If use 'filename', the legend will be the name of each data file
@@ -256,7 +256,7 @@ class elecdata:
     def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
         self.file_dir = file_dir
         self.file_name = os.path.basename(file_dir)
-        self.legend = None
+        self.legend = ''
         self.testmode = ''
         self.fieldmode = False
         self.pe_str = ''
@@ -407,7 +407,7 @@ class peloop(elecdata):
     def _selectLegend(self) -> str:
         """To get legend of a elecdata data when plotting"""
         if self.legend_type is None:
-            self.legend = None
+            self.legend = ''
         elif self.legend_type == 'filename':
             self.legend = self.file_name[:-4]
         elif self.legend_type == 'volt':
