@@ -168,17 +168,18 @@ def plotPandWrec(all_loopdata:list, suffix:str) -> None:
         kV/cm,μC/cm2,μC/cm2,μC/cm2,J/cm3,%\n\
         ,Pmax,Pr,ΔP,,'
     data = np.concatenate((polarization_result, energy_result))
-    #if legend_type == 'filename':
-        #temp_header = data_header.replace('\n', '\n,')
-        #data_header = f'Legend,{temp_header}'
-        #legends = np.array([int(loop.legend) for loop in all_loopdata])
-        #data = np.concatenate(legends, polarization_result)
+    if legend_type == 'filename':
+        temp_header = data_header.replace('\n', '\n,')
+        data_header = f'Legend,{temp_header}'
+        legends = np.array([[loop.legend for loop in all_loopdata]])
+        data = np.concatenate((legends, data))
     time_temp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     np.savetxt(f'wrec_{suffix}_{time_temp}.csv', \
         data.T, \
         delimiter=',', \
         comments = ' ', \
-        header=data_header)
+        header=data_header, \
+        fmt='%s')
 
 def plotPmaxPr(all_loopdata:list, suffix:str) -> np.array:
     """Main function of Pmax Pr-Electric field curves"""
