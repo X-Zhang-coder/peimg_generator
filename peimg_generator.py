@@ -65,7 +65,7 @@ P_range = [0,25]    # Range of polarization intensity (uC/cm2)
 zero_start = True   # To select if the loop will be translated to begin at (0,0)
                     # Use boolean (True or False)
 
-energy_mode = 'off'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
+energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
 
 loop_to_plot = 'first'    # To select which loop to plot (only for double bipolar data)
@@ -73,6 +73,9 @@ loop_to_plot = 'first'    # To select which loop to plot (only for double bipola
                             # 'first': First loop of the data
                             # 'last': Last loop of the data
                             # 'middle': Middle loop of the data (for double bipolar, it is point 50-150)
+
+save_pe_csv = True  # To choose whether to save pe data
+                    # Use boolean (True or False)
 
 output_header = 'auto'  # Prefix name of output image file
                         # Any string or blank is ok
@@ -134,15 +137,28 @@ graph_params={
         }
 rcParams.update(graph_params)
 
-def plotPE(all_loopdata:list, suffix:str) -> None:
+def plotPE(all_loopdata:list, suffix:str, savecsv:bool =False) -> None:
     """Main function of PE-loop plotting"""
     _setPELayout()
+    loops = []
+    legends = []
     for loop_data in all_loopdata:
         plt.plot(loop_data.e_data, loop_data.p_data, label=loop_data.legend)
+        loops.append(np.array((loop_data.e_data, loop_data.p_data)))
+        legends.append(loop_data.legend)
     plt.legend()
     fig_path = f'pe_{suffix}{time.strftime("%Y%m%d_%H%M%S", time.localtime())}.{image_type}'
     plt.savefig(fig_path)
     plt.cla()
+    if savecsv:
+        data_header = 'Electric Field,Polarization,' * len(legends) + '\n' + \
+            'kV/cm,μC/cm2,' * len(legends) + '\n,' + \
+            ',,'.join(legends)
+        np.savetxt(f'pe_{suffix}{time.strftime("%Y%m%d_%H%M%S", time.localtime())}.csv', \
+            np.concatenate(loops).T, \
+            delimiter=',', \
+            comments=' ', \
+            header=data_header)
 
 def plotPandWrec(all_loopdata:list, suffix:str) -> None:
     """Plot Pmax Pr Wrec and η and save data"""
@@ -151,9 +167,15 @@ def plotPandWrec(all_loopdata:list, suffix:str) -> None:
     data_header = 'Electric Field,Polarization,Polarization,Polarization,Wrec,η\n\
         kV/cm,μC/cm2,μC/cm2,μC/cm2,J/cm3,%\n\
         ,Pmax,Pr,ΔP,,'
+    data = np.concatenate((polarization_result, energy_result))
+    #if legend_type == 'filename':
+        #temp_header = data_header.replace('\n', '\n,')
+        #data_header = f'Legend,{temp_header}'
+        #legends = np.array([int(loop.legend) for loop in all_loopdata])
+        #data = np.concatenate(legends, polarization_result)
     time_temp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     np.savetxt(f'wrec_{suffix}_{time_temp}.csv', \
-        np.concatenate((polarization_result, energy_result)).T, \
+        data.T, \
         delimiter=',', \
         comments = ' ', \
         header=data_header)
@@ -230,7 +252,7 @@ def _getCommonPrefix(filenames: list) -> str:
 
 class elecdata:
     """Data of an electric test"""
-    def __init__(self, file_dir: str='', area: float=None, thickness: float=None, legend_type: float=None) -> None:
+    def __init__(self, file_dir: str='', area: float=None, thickness: float=None) -> None:
         self.file_dir = file_dir
         self.file_name = os.path.basename(file_dir)
         self.legend = None
@@ -480,6 +502,6 @@ if __name__ == '__main__':
         output_header = _getCommonPrefix(txt_files)
     if not output_header.endswith('_'):
         output_header += '_'
-    plotPE(all_loopdata, output_header)
+    plotPE(all_loopdata, output_header, savecsv=True)
     if energy_mode == 'on':
         plotPandWrec(all_loopdata, output_header)
