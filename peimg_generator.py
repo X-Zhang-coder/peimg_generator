@@ -497,7 +497,7 @@ class peloop(elecdata):
 if __name__ == '__main__':
     txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
     all_loopdata = [peloop(file, area_set, thickness_set, zero_start=zero_start, legend_type=legend_type) for file in txt_files]
-    if legend_type == 'elecfield':
+    if legend_type != 'filename':
         all_loopdata.sort(key=lambda x: x.max_elecfield)
     if output_header is None or output_header == 'auto':
         output_header = _getCommonPrefix(txt_files)
