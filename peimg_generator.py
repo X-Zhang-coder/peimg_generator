@@ -62,7 +62,7 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
                         # e.g. P_range = [-80, 80]
                     # If use 'auto', the range will be adapted to data
 
-zero_start = True   # To select if the loop will be translated to begin at (0,0)
+zero_start = False   # To select if the loop will be translated to begin at (0,0)
                     # Use boolean (True or False)
 
 energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
@@ -73,6 +73,8 @@ loop_to_plot = 'first'    # To select which loop to plot (only for double bipola
                             # 'first': First loop of the data
                             # 'last': Last loop of the data
                             # 'middle': Middle loop of the data (for double bipolar, it is point 50-150)
+
+single_plot = True
 
 save_pe_csv = True  # To choose whether to save pe data
                     # Use boolean (True or False)
@@ -137,7 +139,7 @@ graph_params={
         }
 rcParams.update(graph_params)
 
-def plotPE(all_loopdata:list, suffix:str, savecsv:bool =False) -> None:
+def plotPE(all_loopdata:list, suffix:str, savecsv:bool =False, single_plot:bool = False) -> None:
     """Main function of PE-loop plotting"""
     _setPELayout()
     loops = []
@@ -150,6 +152,13 @@ def plotPE(all_loopdata:list, suffix:str, savecsv:bool =False) -> None:
     fig_path = f'pe_{suffix}{time.strftime("%Y%m%d_%H%M%S", time.localtime())}.{image_type}'
     plt.savefig(fig_path)
     plt.cla()
+    if single_plot:
+        for i, loop_data in enumerate(all_loopdata):
+            plt.plot(loop_data.e_data, loop_data.p_data, label=loop_data.legend)
+            plt.legend()
+            fig_path = f'pe_{suffix}{i}_{loop_data.legend}{time.strftime("%Y%m%d_%H%M%S", time.localtime())}.{image_type}'
+            plt.savefig(fig_path)
+            plt.cla()
     if savecsv:
         data_header = 'Electric Field,Polarization,' * len(legends) + '\n' + \
             'kV/cm,μC/cm2,' * len(legends) + '\n,' + \
@@ -503,6 +512,6 @@ if __name__ == '__main__':
         output_header = _getCommonPrefix(txt_files)
     if not output_header.endswith('_'):
         output_header += '_'
-    plotPE(all_loopdata, output_header, savecsv=True)
+    plotPE(all_loopdata, output_header, savecsv=True, single_plot=single_plot)
     if energy_mode == 'on':
         plotPandWrec(all_loopdata, output_header)
