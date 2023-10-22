@@ -65,16 +65,16 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
 zero_start = False   # To select if the loop will be translated to begin at (0,0)
                     # Use boolean (True or False)
 
-energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
+energy_mode = 'off'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
 
-loop_to_plot = 'first'    # To select which loop to plot (only for double bipolar data)
+loop_to_plot = 'middle'    # To select which loop to plot (only for double bipolar data)
                             # 'default': All data will be plotted
                             # 'first': First loop of the data
                             # 'last': Last loop of the data
                             # 'middle': Middle loop of the data (for double bipolar, it is point 50-150)
 
-single_plot = True
+single_plot = False
 
 save_pe_csv = True  # To choose whether to save pe data
                     # Use boolean (True or False)
@@ -409,7 +409,7 @@ class peloop(elecdata):
 
     def _processData(self):
         self._computePE()
-        self._selectLoop()
+        self._selectLoop(loop_to_plot)
         self._selectLegend()
         self._computeEnergy()
 
@@ -456,7 +456,7 @@ class peloop(elecdata):
         self.p_data -= P0
         self.pr -= P0
 
-    def _selectLoop(self) -> None:
+    def _selectLoop(self, loop_to_plot) -> None:
         """To select which loop of data to plot"""
         if self.testmode == 'Double Bipolar':
             if loop_to_plot is None or loop_to_plot == 'default':
