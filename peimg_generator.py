@@ -471,8 +471,8 @@ class peloop(elecdata):
             elif loop_to_plot == 'middle':
                 quarter1_point = self.point_number//4
                 quarter3_point = self.point_number - self.point_number//4
-                self.p_data = -self.p_data[quarter1_point:quarter3_point]
-                self.e_data = -self.e_data[quarter1_point:quarter3_point]
+                self.p_data = self.p_data[quarter1_point:quarter3_point]
+                self.e_data = self.e_data[quarter1_point:quarter3_point]
 
     def _computeEnergy(self) -> None:
         """Wrec and efficiency computation"""
