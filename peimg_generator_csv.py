@@ -355,8 +355,6 @@ class elecdata:
                 voltage = float(data_list[1])
                 polarization = float(data_list[-1]) * 1e6 - p0
 
-                print(voltage, polarization)
-
                 if voltage <= 0 and v_data[-1] > 0:
                     self.pr = polarization
                 
