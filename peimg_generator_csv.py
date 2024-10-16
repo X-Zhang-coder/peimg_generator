@@ -65,10 +65,10 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
 zero_start = False   # To select if the loop will be translated to begin at (0,0)
                     # Use boolean (True or False)
 
-energy_mode = 'off'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
+energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
 
-loop_to_plot = 'middle'    # To select which loop to plot (only for double bipolar data)
+loop_to_plot = 'default'    # To select which loop to plot (only for double bipolar data)
                             # 'default': All data will be plotted
                             # 'first': First loop of the data
                             # 'last': Last loop of the data
@@ -107,30 +107,30 @@ legend_pos = 'lower right'  # Position of legend in PE plot
 graph_params={
         'figure.figsize' : (6.432, 4.923),
         'font.family' : 'serif',
-        'font.serif' : 'Times New Roman',
+        'font.serif' : 'Arial',
         "mathtext.fontset":'stix',
         'font.style':'normal',
-        'font.weight':'bold',
-        'font.size': 15,
-        'axes.labelsize' : 25,
-        'axes.labelweight' : 'bold',
-        'axes.linewidth' : 3,
+        #'font.weight':'bold',
+        'font.size': 10,
+        'axes.labelsize' : 15,
+        #'axes.labelweight' : 'bold',
+        'axes.linewidth' : 1.5,
         'axes.facecolor' : 'none',
         'xtick.direction': 'in',
-        'xtick.major.size' : 6,
-        'xtick.major.width' : 2,
+        'xtick.major.size' : 3,
+        'xtick.major.width' : 1.5,
         'xtick.major.pad' : 5,
         'xtick.minor.visible' : False,
-        'xtick.minor.size' : 4,
-        'xtick.minor.width' : 2,
+        'xtick.minor.size' : 3,
+        'xtick.minor.width' : 1.5,
         'ytick.direction': 'in',
-        'ytick.major.size' : 6,
-        'ytick.major.width' : 2,
+        'ytick.major.size' : 3,
+        'ytick.major.width' : 1.5,
         'ytick.major.pad' : 5,
         'ytick.minor.visible' : False,
-        'ytick.minor.size' : 4,
-        'ytick.minor.width' : 2,
-        'lines.linewidth': 2,
+        'ytick.minor.size' : 3,
+        'ytick.minor.width' : 1.5,
+        'lines.linewidth': 1.5,
         'legend.loc': legend_pos,
         'legend.frameon': False,
         'legend.facecolor': 'none',
@@ -284,8 +284,9 @@ class elecdata:
         self.wrec = None
         self.eff = None
         
-        self.readData()
-        
+        #self.readData()
+        self.readCSV()
+
     def processLine(self, line: str) -> None:
         """To process data of a line to elecdata"""
         func = self.lineProcessFunc.get(line[0])
@@ -306,6 +307,86 @@ class elecdata:
         if type(self.thickness_set) != float and type(self.thickness_set) != int:
             self.thickness_set = None
         self._processData()
+
+    def readCSV(self) -> None:
+        """
+        To transform csv-formatted pe_data to array format, 
+        and calculate energy storage density and efficiency.
+        """
+        with open(self.file_dir, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+        self._processCSVlines(lines)
+        self._processData()
+
+    def _processCSVlines(self, lines) -> None:
+
+        for line in lines:
+            if line.startswith('Amplitude '):
+                index_volt_end = line.find('V')
+                self.max_volt = float(line[10:index_volt_end])
+        
+        for line in lines[10:]:
+            if line.startswith('Area='):
+                index_area_end = line.find('cm^2')
+                self.area = float(line[5:index_area_end])
+                index_thickness = line.find('Thickness=') + len('Thickness=')
+                index_thickness_end = line.rfind('m')
+                self.thickness = float(line[index_thickness:index_thickness_end]) / 1e3
+                break
+        
+        index_loop = None
+        for index_temp, line in enumerate(lines[10:]):
+            if line.startswith('Cycle=1'):
+                index_loop = index_temp + 13
+                break
+        
+        lines_loop = lines[index_loop:]
+        
+        data_list = lines_loop[0].split(',')
+        p0 = float(data_list[-1]) * 1e6
+        p_data = [0]
+        v_data = [float(data_list[1])]
+        point_number = 1
+
+        for line in lines_loop[1:]:
+            if len(line) > 10:
+                data_list = line.split(',')
+
+                voltage = float(data_list[1])
+                polarization = float(data_list[-1]) * 1e6 - p0
+
+                print(voltage, polarization)
+
+                if voltage <= 0 and v_data[-1] > 0:
+                    self.pr = polarization
+                
+                v_data.append(voltage)
+                p_data.append(polarization)
+
+                point_number += 1
+            else:
+                break
+        
+        self.point_number = point_number
+        self.p_data = np.array(p_data)
+        self.pmax = max(p_data)
+        v_data = np.array(v_data)
+
+        if type(self.area_set) != float and type(self.area_set) != int:
+            self.area_set = None
+        if type(self.thickness_set) != float and type(self.thickness_set) != int:
+            self.thickness_set = None
+
+        if self.area_set:
+            correct_rate = self.area / self.area_set
+            self.area = self.area_set
+            self.pmax *= correct_rate
+            self.pr *= correct_rate
+            self.p_data *= correct_rate
+        if self.thickness_set:
+            self.thickness = self.thickness_set
+        self.max_elecfield = self.max_volt / self.thickness * 10
+        self.e_data = v_data / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
 
     def _processData(self):
         pass
@@ -408,7 +489,7 @@ class peloop(elecdata):
         super(peloop, self).__init__(file_dir=file_dir, area=area, thickness=thickness)
 
     def _processData(self):
-        self._computePE()
+        #self._computePE()
         self._selectLoop(loop_to_plot)
         self._selectLegend()
         self._computeEnergy()
@@ -448,76 +529,6 @@ class peloop(elecdata):
                 self.e_data = pe_data[:, 2] / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
         if self.zero_start:
             self.__zeroStart()
-
-    def readCSV(self) -> None:
-        """
-        To transform csv-formatted pe_data to array format, 
-        and calculate energy storage density and efficiency.
-        """
-        with open(self.file_dir, 'r', encoding='utf-8', errors='ignore') as f:
-            lines = f.readlines()
-        self._processCSVlines(lines)
-        if type(self.area_set) != float and type(self.area_set) != int:
-            self.area_set = None
-        if type(self.thickness_set) != float and type(self.thickness_set) != int:
-            self.thickness_set = None
-        self._processData()
-
-    def _processCSVlines(self, lines) -> None:
-        for line in lines:
-            if line.startswith('Amplitude '):
-                index_volt_end = line.find('V')
-                self.max_volt = float(line[10:index_volt_end])
-        
-        for line in lines[10:]:
-            if line.startswith('Area='):
-                index_area_end = line.find('cm^2')
-                self.area = float(line[5:index_area_end])
-                index_thickness = line.find('Thickness=') + len('Thickness=')
-                index_thickness_end = line.rfind('m')
-                self.thickness = float(line[index_thickness,index_thickness_end]) / 1e3
-                break
-        
-        index_loop = None
-        for index_temp, line in enumerate(lines[10:]):
-            if line.startswith('Cycle=1'):
-                index_loop = index_temp + 12
-                break
-        
-        lines_loop = lines[index_loop:]
-        
-        data_list = lines_loop[0].split(',')
-        p0 = float(data_list[-1]) * 1e6
-        p_data = [0]
-        v_data = [float(data_list[2])]
-
-        for line in enumerate(lines_loop[1:]):
-            if line[0].isdigit():
-                data_list = line.split(',')
-
-                voltage = float(data_list[2])
-                polarization = float(data_list[-1]) * 1e6 - p0
-
-                if voltage <= 0 and v_data[-1] > 0:
-                    self.pr = polarization
-                
-                v_data.append(voltage)
-                p_data.append(polarization)
-        
-        self.p_data = np.array(p_data)
-        self.pmax = max(p_data)
-        v_data = np.array(v_data)
-
-        if self.area_set:
-            correct_rate = self.area / self.area_set
-            self.area = self.area_set
-            self.pmax *= correct_rate
-            self.pr *= correct_rate
-            self.p_data *= correct_rate
-        if self.thickness_set:
-            self.thickness = self.thickness_set
-        self.max_elecfield = self.max_volt / self.thickness * 10
-        self.e_data = v_data / self.thickness * 10  # 10 is to turn unit kV/mm to kV/cm
 
     def __zeroStart(self) -> None:
         P0 = self.p_data[0]
@@ -572,10 +583,10 @@ class peloop(elecdata):
         self.eff = w_rec/w_all
 
 if __name__ == '__main__':
-    txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
-    all_loopdata = [peloop(file, area_set, thickness_set, zero_start=zero_start, legend_type=legend_type) for file in txt_files]
-    #txt_files = [file for file in os.listdir('./') if file.endswith('.csv')]
+    #txt_files = [file for file in os.listdir('./') if file.endswith('.txt')]
     #all_loopdata = [peloop(file, area_set, thickness_set, zero_start=zero_start, legend_type=legend_type) for file in txt_files]
+    txt_files = [file for file in os.listdir('./') if file.endswith('.csv')]
+    all_loopdata = [peloop(file, area_set, thickness_set, zero_start=zero_start, legend_type=legend_type) for file in txt_files]
 
     if legend_type != 'filename':
         all_loopdata.sort(key=lambda x: x.max_elecfield)
