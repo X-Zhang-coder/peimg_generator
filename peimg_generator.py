@@ -65,10 +65,10 @@ P_range = 'auto'    # Range of polarization intensity (uC/cm2)
 zero_start = False   # To select if the loop will be translated to begin at (0,0)
                     # Use boolean (True or False)
 
-energy_mode = 'off'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
+energy_mode = 'on'  # To choose whether to plot P_max P_r-E, W_rec, \eta-E curves
                     # Use 'on' or 'off'
 
-loop_to_plot = 'middle'    # To select which loop to plot (only for double bipolar data)
+loop_to_plot = 'first'    # To select which loop to plot (only for double bipolar data)
                             # 'default': All data will be plotted
                             # 'first': First loop of the data
                             # 'last': Last loop of the data
@@ -426,7 +426,7 @@ class peloop(elecdata):
 
     def _computePE(self) -> None:
         """PE data computation"""
-        pe_data = np.array(np.mat(self.pe_str)).reshape(-1,4)
+        pe_data = np.array(np.asmatrix(self.pe_str)).reshape(-1,4)
         self.p_data = pe_data[:, 3]
         if self.area_set:
             correct_rate = self.area / self.area_set
@@ -566,8 +566,8 @@ class peloop(elecdata):
         e_charge = e_data[start_point:max_point+1]
         p_rec = p_data[max_point:back_point]
         e_rec = e_data[max_point:back_point]
-        w_rec = -integrate.trapz(e_rec, p_rec) / 1000
-        w_all = integrate.trapz(e_charge, p_charge) / 1000
+        w_rec = -integrate.trapezoid(e_rec, p_rec) / 1000
+        w_all = integrate.trapezoid(e_charge, p_charge) / 1000
         self.wrec = w_rec
         self.eff = w_rec/w_all
 
